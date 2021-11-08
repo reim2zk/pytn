@@ -10,6 +10,32 @@ def ising_transfer_matrix_mpo(J_kT, num):
     return MPO([w for i in range(num)])
 
 
+def traverse_field_ising_mpo(J, g, num):
+    """ MPO representation of traverse field ising model Hamiltonian
+        H = -J sum_j (sigma^z_j sigma^z_{j+1} + g sigma^z_j)
+    """
+    sig_x = np.array([
+        [0.0, 1.0],
+        [1.0, 0.0]
+    ])
+    sig_z = np.array([
+        [1.0, 0.0],
+        [0.0, -1.0]
+    ])
+    one = np.eye(2)
+    zero = np.zeros(shape=(2, 2))
+    w_g_h_a_b = tf.constant([
+        [one,     zero,  zero],
+        [sig_z,   zero,  zero],
+        [g*sig_x, sig_z, one]
+    ], dtype=tf.float32)  # shape = (3, 3, 2, 2)
+    w_g_a_b_h = tf.transpose(w_g_h_a_b, perm=[0, 2, 3, 1])
+    w_a_b_h = -J*w_g_a_b_h[2:3, :, :, :]
+    w_g_a_b = w_g_a_b_h[:, :, :, 0:1]
+    w_li = [w_a_b_h] + [w_g_a_b_h]*(num-2) + [w_g_a_b]
+    return MPO(w_li)
+
+
 @dataclasses.dataclass
 class MPO:
     W_li: tf.Tensor  # list of tensors W(g)^m_a(h)
