@@ -27,6 +27,7 @@ class DMRG:
                 [x, a, y, b] = Y.shape[:4]
                 n = x*a*y*b
                 Y_mat = tf.reshape(Y, shape=(n, n))
+                print("Y_mat.shape",  Y_mat.shape)
                 (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
                 phi_xayb = tf.transpose(U_xaby_w)[0]
                 phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
