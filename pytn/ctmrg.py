@@ -52,7 +52,7 @@ class CTMRG():
             print(f"L={L}, Z={Z}, spin={spin}, spin_corr={spin_corr}")
         return {"L": L, "Z": Z, "spin": spin, "spin_corr": spin_corr}
 
-    def run_directory(self):
+    def init_tensor(self):
         if self.boundary_cond == "free":
             P1_abc = tf.reduce_sum(self.W_abcd, axis=0)
             C1_ab = tf.reduce_sum(self.W_abcd, axis=[0, 1])
@@ -62,6 +62,18 @@ class CTMRG():
         else:
             msg = f"invalid argument. boudanry_cond={self.boundary_cond}"
             raise Exception(msg)
+        return (P1_abc, C1_ab)
+
+    def rescale_tensor(self, P_xdy, C_xy):
+        if self.rescale:
+            scaling_coef = np.max(
+                [P_xdy.numpy().max(), C_xy.numpy().max()])
+            P_xdy = P_xdy / scaling_coef
+            C_xy = C_xy / scaling_coef
+        return (P_xdy, C_xy)
+
+    def run_directory(self):
+        (P1_abc, C1_ab) = self.init_tensor()
 
         li = []
         P_xdy = P1_abc
@@ -82,23 +94,11 @@ class CTMRG():
             P_xdy = tf.reshape(P_x_a_b_y_d, shape=(x*a, b, y*d))
             (x, b, y, d) = C_x_b_y_d.shape
             C_xy = tf.reshape(C_x_b_y_d, shape=(x*b, y*d))
-            if self.rescale:
-                scaling_coef = np.max(
-                    [P_xdy.numpy().max(), C_xy.numpy().max()])
-                P_xdy = P_xdy / scaling_coef
-                C_xy = C_xy / scaling_coef
+            (P_xdy, C_xy) = self.rescale_tensor(P_xdy, C_xy)
         return li
 
     def run(self):
-        if self.boundary_cond == "free":
-            P1_abc = tf.reduce_sum(self.W_abcd, axis=0)
-            C1_ab = tf.reduce_sum(self.W_abcd, axis=[0, 1])
-        elif self.boundary_cond == "fixed":
-            P1_abc = self.W_abcd[1, :, :, :]
-            C1_ab = self.W_abcd[1, 1, :, :]
-        else:
-            msg = f"invalid argument. boudanry_cond={self.boundary_cond}"
-            raise Exception(msg)
+        (P1_abc, C1_ab) = self.init_tensor()
 
         li = []
         P_xdy = P1_abc
@@ -117,7 +117,6 @@ class CTMRG():
             # diagonalize
             (x, a, y, b) = C_x_b_y_d.shape
             C = tf.reshape(C_x_b_y_d, shape=(x*a, y*b))
-            print("C", C.shape)
             (lam_i, U_xa_i) = tf.linalg.eigh(C)
             num_lam = lam_i.shape[0]
             nw = self.eff_num(num_lam)
@@ -134,9 +133,5 @@ class CTMRG():
             # update
             P_xdy = P_i_d_j
             C_xy = C_i_j
-            if self.rescale:
-                scaling_coef = np.max(
-                    [P_xdy.numpy().max(), C_xy.numpy().max()])
-                P_xdy = P_xdy / scaling_coef
-                C_xy = C_xy / scaling_coef
+            (P_xdy, C_xy) = self.rescale_tensor(P_xdy, C_xy)
         return li
