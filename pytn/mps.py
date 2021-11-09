@@ -40,7 +40,7 @@ def canonical_mps(psi: tf.Tensor, chi: Union[int, None] = None):
         psi_xa_bcd = lamV_yb_cd
         dim_x = dim_y
     B_x_a_y_li = [tf.reshape(tf.transpose(V_bcd_y), (dim_y, dim_a, 1))]
-    return MPS(A_x_a_y_li, lam_y, B_x_a_y_li)
+    return MPS(A_x_a_y_li, lam_y, B_x_a_y_li, chi)
 
 
 def up_spin_mps(num, chi: Union[int, None] = None):
@@ -55,6 +55,7 @@ class MPS:
     A_li: tf.Tensor  # list of tensors A_x^a_y
     lam: tf.Tensor   # eigenvalues lambda_x
     B_li: tf.Tensor  # list of tensors B_x^a_y
+    chi: Union[int, None] = None
 
     def check(self):
         eps = 0.0001
@@ -125,7 +126,7 @@ class MPS:
             phi_xazb = tf.einsum('xay,ybz,z->xazb', A_xay, A_ybz, lam_z)
         (nx, na, nz, nb) = phi_xazb.shape
         phi_xa_zb = tf.reshape(phi_xazb, (nx*na, nb*nz))
-        (lam_w, U_xa_w, V_zb_w) = tf.linalg.svd(phi_xa_zb)
+        (lam_w, U_xa_w, V_zb_w) = svd_with_reduction(phi_xa_zb, self.chi)
         nw = lam_w.shape[0]
         A_xaw = tf.reshape(U_xa_w, (nx, na, nw))
         B_wbz = tf.transpose(tf.reshape(V_zb_w, (nz, nb, nw)), perm=[2, 1, 0])
@@ -144,7 +145,7 @@ class MPS:
             phi_xazb = tf.einsum('x,xay,ybz->xazb', lam_x, B_xay, B_ybz)
         (nx, na, nz, nb) = phi_xazb.shape
         phi_xa_zb = tf.reshape(phi_xazb, (na*nx, nb*nz))
-        (lam_w, U_xa_w, V_zb_w) = tf.linalg.svd(phi_xa_zb)
+        (lam_w, U_xa_w, V_zb_w) = svd_with_reduction(phi_xa_zb, self.chi)
         nw = lam_w.shape[0]
         A_xaw = tf.reshape(U_xa_w, (nx, na, nw))
         B_wbz = tf.transpose(tf.reshape(V_zb_w, (nz, nb, nw)), perm=[2, 1, 0])
