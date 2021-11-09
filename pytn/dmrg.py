@@ -9,6 +9,8 @@ from pytn.mpo import MPO
 class DMRG:
     mpo: MPO  # mpo.w_li
     mps: MPS  # A_li, lam, B_li
+    chi: int
+    max_iter: int
 
     def check(self):
         nw = len(self.mpo.W_li)
@@ -17,38 +19,57 @@ class DMRG:
         if (nw != na + nb):
             print(f"invalid length. len(W)={nw}, len(A)={na}, len(B)={nb}")
 
+    def eff_num(self, nw: int):
+        if self.chi is None:
+            return nw
+        if nw > self.chi:
+            return self.chi
+        else:
+            return nw
+
     def run(self):
-        max_iter = 10
         self.mps.move_left_edge()
-        for it in range(max_iter):
+        for it in range(self.max_iter):
             num = self.mps.num_B()-1
             for i in range(num):
-                Y = self.env_matrix_moving_right()  # index=xayb
-                [x, a, y, b] = Y.shape[:4]
+                # build env matrix
+                Y_xayb = self.env_matrix_moving_right()  # index=xayb
+                [x, a, y, b] = Y_xayb.shape[:4]
                 n = x*a*y*b
-                Y_mat = tf.reshape(Y, shape=(n, n))
+                Y_mat = tf.reshape(Y_xayb, shape=(n, n))
                 print("Y_mat.shape",  Y_mat.shape)
+
+                # diagonalize env matrix
                 (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
                 phi_xayb = tf.transpose(U_xaby_w)[0]
                 phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
                 lam = lam_w[0]
-                lam2 = tf.reduce_sum(Y*phi_xayb)
+                lam2 = tf.reduce_sum(Y_xayb * phi_xayb)
+
+                # update MPS
                 self.mps.move_right(phi_xayb)
+
+                # show
                 lam3 = self.expectation_value()
                 msg = f"iter={it}, direction=right, step={i}"
                 msg += f", lambda={lam}, {lam2}, {lam3}"
                 print(msg)
             num = self.mps.num_A()-1
             for i in range(num):
-                Y = self.env_matrix_moving_left()  # index=xayb
-                [x, a, y, b] = Y.shape[:4]
+                # build env matrix
+                Y_xayb = self.env_matrix_moving_left()  # index=xayb
+                [x, a, y, b] = Y_xayb.shape[:4]
                 n = x*a*y*b
-                Y_mat = tf.reshape(Y, shape=(n, n))
+                Y_mat = tf.reshape(Y_xayb, shape=(n, n))
+
+                # diagonalize env matrix
                 (_, U_xaby_w) = tf.linalg.eigh(Y_mat)
                 phi_xayb = tf.transpose(U_xaby_w)[0]
                 phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
                 lam = lam_w[0]
                 print(f"iter={it}, direction=left, step={i}, lambda={lam}")
+
+                # update MPS
                 self.mps.move_left(phi_xayb)
 
     def expectation_value(self):
