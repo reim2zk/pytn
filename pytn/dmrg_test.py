@@ -27,7 +27,7 @@ def test_dmrg_run():
     print("exact eigenvalues")
     print(lam_x)
 
-    dmrg0 = pytn.dmrg.DMRG(mpo0, mps0)
+    dmrg0 = pytn.dmrg.DMRG(mpo0, mps0, 10)
     dmrg0.run()
 
     assert 1 == pytest.approx(2.0)

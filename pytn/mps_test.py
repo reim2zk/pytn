@@ -85,3 +85,18 @@ def test_move_left_edge():
     assert 3 == mps.num_A()
     assert 1 == mps.num_B()
     assert tensor_almost_equal(t0, t2)
+
+
+def test_mps_reduce():
+    num = 10
+    chi = 30
+
+    psi0 = tf.random.uniform(shape=[2]*num)
+    mps = canonical_mps(psi0)
+    mps.normalize()
+    assert mps.norm2() == pytest.approx(1.0)
+
+    mps.reduce(chi)
+    assert mps.norm2() == pytest.approx(1.0)
+
+    # assert 1 == pytest.approx(0.0)

@@ -1,9 +1,25 @@
+from typing import Union
 import dataclasses
 import numpy as np
 import tensorflow as tf
 
 
-def canonical_mps(psi: tf.Tensor):
+def svd_with_reduction(psi_i_j: tf.Tensor, chi: Union[int, None]):
+    (lam_w, U_i_w, V_j_w) = tf.linalg.svd(psi_i_j)
+    nw = lam_w.shape[0]
+    if chi is None:
+        idx = 0
+    elif nw > chi:
+        idx = nw-chi
+    else:
+        idx = 0
+    lam_w = lam_w[idx:]
+    U_i_w = U_i_w[:, idx:]
+    V_j_w = V_j_w[:, idx:]
+    return (lam_w, U_i_w, V_j_w)
+
+
+def canonical_mps(psi: tf.Tensor, chi: Union[int, None] = None):
     dim_a_li = psi.shape
     dim_a_b_li = zip(dim_a_li[:-1], dim_a_li[1:])
 
@@ -11,7 +27,8 @@ def canonical_mps(psi: tf.Tensor):
     dim_x = 1
     A_x_a_y_li = []
     for (dim_a, dim_b) in dim_a_b_li:
-        (lam_y, U_xa_y, V_bcd_y) = tf.linalg.svd(psi_xa_bcd)
+        # (lam_y, U_xa_y, V_bcd_y) = tf.linalg.svd(psi_xa_bcd)
+        (lam_y, U_xa_y, V_bcd_y) = svd_with_reduction(psi_xa_bcd, chi)
         dim_y = lam_y.shape[0]
         A_x_a_y = tf.reshape(U_xa_y, (dim_x, dim_a, dim_y))
         A_x_a_y_li.append(A_x_a_y)
@@ -26,11 +43,11 @@ def canonical_mps(psi: tf.Tensor):
     return MPS(A_x_a_y_li, lam_y, B_x_a_y_li)
 
 
-def up_spin_mps(num):
+def up_spin_mps(num, chi: Union[int, None] = None):
     xs = np.zeros(shape=[2**num], dtype=np.float32)
     xs[-1] = 1
     t = tf.reshape(xs, [2]*num)
-    return canonical_mps(t)
+    return canonical_mps(t, chi)
 
 
 @dataclasses.dataclass
@@ -143,3 +160,20 @@ class MPS:
     def move_right_edge(self):
         for _ in range(self.num_B()-1):
             self.move_right()
+
+    def reduce(self, chi: int):
+        for idx in range(len(self.A_li)):
+            A_x_a_y = self.A_li[idx]
+            (nx0, _, ny0) = A_x_a_y.shape
+            nx = np.min([chi, nx0])
+            ny = np.min([chi, ny0])
+            self.A_li[idx] = A_x_a_y[nx0-nx:, :, ny0-ny:]
+        for idx in range(len(self.B_li)):
+            B_x_a_y = self.B_li[idx]
+            (nx0, _, ny0) = self.B_li[idx].shape
+            nx = np.min([chi, nx0])
+            ny = np.min([chi, ny0])
+            self.B_li[idx] = B_x_a_y[nx0-nx:, :, ny0-ny:]
+        (nx0) = self.lam.shape[0]
+        nx = np.min([nx0, chi])
+        self.lam = self.lam[nx0-nx:]

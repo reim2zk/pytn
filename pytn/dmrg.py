@@ -9,7 +9,6 @@ from pytn.mpo import MPO
 class DMRG:
     mpo: MPO  # mpo.w_li
     mps: MPS  # A_li, lam, B_li
-    chi: int
     max_iter: int
 
     def check(self):
@@ -18,14 +17,6 @@ class DMRG:
         nb = len(self.mps.B_li)
         if (nw != na + nb):
             print(f"invalid length. len(W)={nw}, len(A)={na}, len(B)={nb}")
-
-    def eff_num(self, nw: int):
-        if self.chi is None:
-            return nw
-        if nw > self.chi:
-            return self.chi
-        else:
-            return nw
 
     def run(self):
         self.mps.move_left_edge()

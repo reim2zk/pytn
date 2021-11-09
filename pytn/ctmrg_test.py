@@ -41,4 +41,3 @@ def test_ctmrg():
     res = ctmrg.run()
     for el in res:
         print(el)
-    assert 1 == pytest.approx(0.0)
