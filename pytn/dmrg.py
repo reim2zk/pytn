@@ -10,6 +10,7 @@ class DMRG:
     mpo: MPO  # mpo.w_li
     mps: MPS  # A_li, lam, B_li
     max_iter: int
+    disp: bool = False
 
     def check(self):
         nw = len(self.mpo.W_li)
@@ -20,6 +21,7 @@ class DMRG:
 
     def run(self):
         self.mps.move_left_edge()
+        li = []
         for it in range(self.max_iter):
             num = self.mps.num_B()-1
             for i in range(num):
@@ -28,23 +30,29 @@ class DMRG:
                 [x, a, y, b] = Y_xayb.shape[:4]
                 n = x*a*y*b
                 Y_mat = tf.reshape(Y_xayb, shape=(n, n))
-                print("Y_mat.shape",  Y_mat.shape)
 
                 # diagonalize env matrix
                 (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
                 phi_xayb = tf.transpose(U_xaby_w)[0]
                 phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
-                lam = lam_w[0]
-                lam2 = tf.reduce_sum(Y_xayb * phi_xayb)
+                lam = lam_w[0].numpy()
+                lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
 
                 # update MPS
                 self.mps.move_right(phi_xayb)
 
-                # show
-                lam3 = self.expectation_value()
-                msg = f"iter={it}, direction=right, step={i}"
-                msg += f", lambda={lam}, {lam2}, {lam3}"
-                print(msg)
+                # result
+                el = {
+                    "iter": it,
+                    "direction": "right",
+                    "step": i,
+                    "min_eigval": lam,
+                    "Y.phi": lam2
+                }
+                li.append(el)
+                if self.disp:
+                    print(el)
+
             num = self.mps.num_A()-1
             for i in range(num):
                 # build env matrix
@@ -57,11 +65,24 @@ class DMRG:
                 (_, U_xaby_w) = tf.linalg.eigh(Y_mat)
                 phi_xayb = tf.transpose(U_xaby_w)[0]
                 phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
-                lam = lam_w[0]
-                print(f"iter={it}, direction=left, step={i}, lambda={lam}")
+                lam = lam_w[0].numpy()
+                lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
 
                 # update MPS
                 self.mps.move_left(phi_xayb)
+
+                # result
+                el = {
+                    "iter": it,
+                    "direction": "left",
+                    "step": i,
+                    "min_eigval": lam,
+                    "Y.phi": lam
+                }
+                li.append(el)
+                if self.disp:
+                    print(el)
+        return li
 
     def expectation_value(self):
         P_z_h_x = self.left_tensor_P()
