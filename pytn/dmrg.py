@@ -35,7 +35,8 @@ class DMRG:
         phi_xayb = tf.transpose(U_xaby_w)[0]
         phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
         lam = lam_w[0].numpy()
-        lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
+        lam2 = tf.einsum("xayb,xaybwczd,wczd",
+                         phi_xayb, Y_xayb, phi_xayb).numpy()
 
         # update MPS
         self.mps.move_right(phi_xayb)
