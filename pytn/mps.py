@@ -4,18 +4,18 @@ import numpy as np
 import tensorflow as tf
 
 
-def svd_with_reduction(psi_i_j: tf.Tensor, chi: Union[int, None]):
+def svd_with_reduction(psi_i_j: tf.Tensor, chi: Union[int, None] = None):
     (lam_w, U_i_w, V_j_w) = tf.linalg.svd(psi_i_j)
     nw = lam_w.shape[0]
     if chi is None:
-        idx = 0
+        idx = nw
     elif nw > chi:
-        idx = nw-chi
+        idx = chi
     else:
-        idx = 0
-    lam_w = lam_w[idx:]
-    U_i_w = U_i_w[:, idx:]
-    V_j_w = V_j_w[:, idx:]
+        idx = nw
+    lam_w = lam_w[:idx]
+    U_i_w = U_i_w[:, :idx]
+    V_j_w = V_j_w[:, :idx]
     return (lam_w, U_i_w, V_j_w)
 
 

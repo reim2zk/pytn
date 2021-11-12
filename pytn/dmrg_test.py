@@ -15,28 +15,39 @@ def test_dmrg_env_matrix():
     num = 8
     chi = 10  # max=32
 
-    psi0 = tf.constant(
-        np.random.uniform(size=2**num).reshape([2]*num),
-        dtype=tf.float32)
-    mps = pytn.mps.canonical_mps(psi0, chi)
-    mps.move_left_edge()
-    mps.normalize()
+    # psi0 = tf.constant(
+    #     np.random.uniform(size=2**num).reshape([2]*num),
+    #     dtype=tf.float32)
+    # mps = pytn.mps.canonical_mps(psi0, chi)
+    mps = pytn.mps.up_spin_mps(num, chi)
 
     mpo = pytn.mpo.traverse_field_ising_mpo(1.0, 0.1, num)
     dmrg = pytn.dmrg.DMRG(mpo, mps, 10)
 
-    Y_xayb = dmrg.env_matrix_moving_right()
-    [x, a, y, b] = Y_xayb.shape[:4]
-    n = x*a*y*b
-    Y_mat = tf.reshape(Y_xayb, shape=(n, n))
-    assert tensor_almost_equal(Y_mat, tf.transpose(Y_mat))
+    dmrg.init()
+    # Y_xayb = dmrg.env_matrix_moving_right()
+    # [x, a, y, b] = Y_xayb.shape[:4]
+    # n = x*a*y*b
+    # Y_mat = tf.reshape(Y_xayb, shape=(n, n))
+    # assert tensor_almost_equal(Y_mat, tf.transpose(Y_mat))
+
+    # dmrg.step_right()
+    # Y_xayb = dmrg.env_matrix_moving_right()
+    # [x, a, y, b] = Y_xayb.shape[:4]
+    # n = x*a*y*b
+    # Y_mat = tf.reshape(Y_xayb, shape=(n, n))
+    # print(Y_mat)
+    # (e, _) = tf.linalg.eigh(Y_mat)
+    # print(e)
+    # assert tensor_almost_equal(Y_mat, tf.transpose(Y_mat))
+
+    assert 1.0 == pytest.approx(2.0)
 
 
 def test_dmrg_run():
     num = 8
     for chi in [6]:
         mps0 = pytn.mps.up_spin_mps(num, chi)
-        mps0.normalize()
         print(mps0.chi, [a.shape for a in mps0.A_li])
 
         mpo0 = pytn.mpo.traverse_field_ising_mpo(1.0, 0.1, num)

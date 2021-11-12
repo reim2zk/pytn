@@ -19,66 +19,75 @@ class DMRG:
         if (nw != na + nb):
             print(f"invalid length. len(W)={nw}, len(A)={na}, len(B)={nb}")
 
-    def run(self):
+    def init(self):
+        self.mps.normalize()
         self.mps.move_left_edge()
+
+    def step_right(self):
+        # build env matrix
+        Y_xayb = self.env_matrix_moving_right()  # index=xayb
+        [x, a, y, b] = Y_xayb.shape[:4]
+        n = x*a*y*b
+        Y_mat = tf.reshape(Y_xayb, shape=(n, n))
+
+        # diagonalize env matrix
+        (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
+        phi_xayb = tf.transpose(U_xaby_w)[0]
+        phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
+        lam = lam_w[0].numpy()
+        lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
+
+        # update MPS
+        self.mps.move_right(phi_xayb)
+
+        # result
+        el = {
+            "direction": "right",
+            "min_eigval": lam,
+            "Y.phi": lam2
+        }
+        return el
+
+    def step_left(self):
+        # build env matrix
+        Y_xayb = self.env_matrix_moving_left()  # index=xayb
+        [x, a, y, b] = Y_xayb.shape[:4]
+        n = x*a*y*b
+        Y_mat = tf.reshape(Y_xayb, shape=(n, n))
+
+        # diagonalize env matrix
+        (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
+        phi_xayb = tf.transpose(U_xaby_w)[0]
+        phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
+        lam = lam_w[0].numpy()
+        lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
+
+        # update MPS
+        self.mps.move_left(phi_xayb)
+
+        # result
+        return {
+            "direction": "left",
+            "min_eigval": lam,
+            "Y.phi": lam2
+        }
+
+    def run(self):
+        self.init()
         li = []
         for it in range(self.max_iter):
             num = self.mps.num_B()-1
-            for i in range(num):
-                # build env matrix
-                Y_xayb = self.env_matrix_moving_right()  # index=xayb
-                [x, a, y, b] = Y_xayb.shape[:4]
-                n = x*a*y*b
-                Y_mat = tf.reshape(Y_xayb, shape=(n, n))
-
-                # diagonalize env matrix
-                (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
-                phi_xayb = tf.transpose(U_xaby_w)[0]
-                phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
-                lam = lam_w[0].numpy()
-                lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
-
-                # update MPS
-                self.mps.move_right(phi_xayb)
-
-                # result
-                el = {
-                    "iter": it,
-                    "direction": "right",
-                    "step": i,
-                    "min_eigval": lam,
-                    "Y.phi": lam2
-                }
+            for _ in range(num):
+                el = self.step_right()
+                el["iter"] = it
                 li.append(el)
                 if self.disp:
                     print(el)
 
             num = self.mps.num_A()-1
-            for i in range(num):
-                # build env matrix
-                Y_xayb = self.env_matrix_moving_left()  # index=xayb
-                [x, a, y, b] = Y_xayb.shape[:4]
-                n = x*a*y*b
-                Y_mat = tf.reshape(Y_xayb, shape=(n, n))
-
-                # diagonalize env matrix
-                (_, U_xaby_w) = tf.linalg.eigh(Y_mat)
-                phi_xayb = tf.transpose(U_xaby_w)[0]
-                phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
-                lam = lam_w[0].numpy()
-                lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
-
-                # update MPS
-                self.mps.move_left(phi_xayb)
-
-                # result
-                el = {
-                    "iter": it,
-                    "direction": "left",
-                    "step": i,
-                    "min_eigval": lam,
-                    "Y.phi": lam
-                }
+            for _ in range(num):
+                el = self.step_left()
+                el["iter"] = it
                 li.append(el)
                 if self.disp:
                     print(el)
