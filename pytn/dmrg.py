@@ -22,35 +22,9 @@ class DMRG:
         self.mps.normalize()
         self.mps.move_left_edge()
 
-    def step_right(self):
+    def step(self, direction: str):
         # build env matrix
-        Y_xayb = self.env_matrix_moving_right()  # index=xayb
-        [x, a, y, b] = Y_xayb.shape[:4]
-        n = x*a*y*b
-        Y_mat = tf.reshape(Y_xayb, shape=(n, n))
-
-        # diagonalize env matrix
-        (lam_w, U_xaby_w) = tf.linalg.eigh(Y_mat)
-        phi_xayb = tf.transpose(U_xaby_w)[0]
-        phi_xayb = tf.reshape(phi_xayb, shape=[x, a, y, b])
-        lam = lam_w[0].numpy()
-        lam2 = tf.einsum("xayb,xaybwczd,wczd",
-                         phi_xayb, Y_xayb, phi_xayb).numpy()
-
-        # update MPS
-        self.mps.move_right(phi_xayb)
-
-        # result
-        el = {
-            "direction": "right",
-            "min_eigval": lam,
-            "Y.phi": lam2
-        }
-        return el
-
-    def step_left(self):
-        # build env matrix
-        Y_xayb = self.env_matrix_moving_left()  # index=xayb
+        Y_xayb = self.env_matrix(direction)
         [x, a, y, b] = Y_xayb.shape[:4]
         n = x*a*y*b
         Y_mat = tf.reshape(Y_xayb, shape=(n, n))
@@ -63,11 +37,14 @@ class DMRG:
         lam2 = tf.reduce_sum(Y_xayb * phi_xayb).numpy()
 
         # update MPS
-        self.mps.move_left(phi_xayb)
+        if direction == "left":
+            self.mps.move_left(phi_xayb)
+        else:
+            self.mps.move_right(phi_xayb)
 
         # result
         return {
-            "direction": "left",
+            "direction": direction,
             "min_eigval": lam,
             "Y.phi": lam2
         }
@@ -78,7 +55,7 @@ class DMRG:
         for it in range(max_iter):
             num = self.mps.num_B()-1
             for _ in range(num):
-                el = self.step_right()
+                el = self.step("right")
                 el["iter"] = it
                 li.append(el)
                 if self.disp:
@@ -86,7 +63,7 @@ class DMRG:
 
             num = self.mps.num_A()-1
             for _ in range(num):
-                el = self.step_left()
+                el = self.step("left")
                 el["iter"] = it
                 li.append(el)
                 if self.disp:
@@ -99,22 +76,18 @@ class DMRG:
         lam_x = self.mps.lam
         return tf.einsum("zhx,x,z,zhx", P_z_h_x, lam_x, lam_x, Q_z_h_x)
 
-    def env_matrix_moving_left(self):
+    def env_matrix(self, direction: str):
         num_A = self.mps.num_A()
-        W_g_m_a_l = self.mpo.W_li[num_A-2]
-        W_l_n_b_h = self.mpo.W_li[num_A-1]
-        P_z_g_x = self.left_tensor_P(skip=2)
-        Q_w_h_y = self.right_tensor_Q(skip=0)
-        Y = tf.einsum("zgx,why,gmal,lnbh->xaybzmwn",
-                      P_z_g_x, Q_w_h_y, W_g_m_a_l, W_l_n_b_h)
-        return Y
-
-    def env_matrix_moving_right(self):
-        num_A = self.mps.num_A()
-        W_g_m_a_l = self.mpo.W_li[num_A]
-        W_l_n_b_h = self.mpo.W_li[num_A+1]
-        P_z_g_x = self.left_tensor_P(skip=0)
-        Q_w_h_y = self.right_tensor_Q(skip=2)
+        if direction == "right":
+            W_g_m_a_l = self.mpo.W_li[num_A]
+            W_l_n_b_h = self.mpo.W_li[num_A+1]
+            P_z_g_x = self.left_tensor_P(skip=0)
+            Q_w_h_y = self.right_tensor_Q(skip=2)
+        else:
+            W_g_m_a_l = self.mpo.W_li[num_A-2]
+            W_l_n_b_h = self.mpo.W_li[num_A-1]
+            P_z_g_x = self.left_tensor_P(skip=2)
+            Q_w_h_y = self.right_tensor_Q(skip=0)
         Y = tf.einsum("zgx,why,gmal,lnbh->xaybzmwn",
                       P_z_g_x, Q_w_h_y, W_g_m_a_l, W_l_n_b_h)
         return Y
