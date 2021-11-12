@@ -1,3 +1,5 @@
 *.tar.gz
 *pyc
 *txt
+*-checkpoint.ipynb
+PKG-INFO
