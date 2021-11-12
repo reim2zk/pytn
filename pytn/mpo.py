@@ -65,5 +65,4 @@ class MPO:
         n_li = list(t.shape)
         num = len(n_li)//2
         n = np.product(n_li[:num])
-        print("n=", n)
         return tf.reshape(t, shape=(n, n))

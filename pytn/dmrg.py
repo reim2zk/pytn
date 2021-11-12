@@ -39,8 +39,10 @@ class DMRG:
         # update MPS
         if direction == "left":
             self.mps.move_left(phi_xayb)
-        else:
+        elif direction == "right":
             self.mps.move_right(phi_xayb)
+        else:
+            raise Exception(f"invalid argument. direction={direction}")
 
         # result
         return {
