@@ -9,7 +9,6 @@ from pytn.mpo import MPO
 class DMRG:
     mpo: MPO  # mpo.w_li
     mps: MPS  # A_li, lam, B_li
-    max_iter: int
     disp: bool = False
 
     def check(self):
@@ -73,10 +72,10 @@ class DMRG:
             "Y.phi": lam2
         }
 
-    def run(self):
+    def run(self, max_iter=10):
         self.init()
         li = []
-        for it in range(self.max_iter):
+        for it in range(max_iter):
             num = self.mps.num_B()-1
             for _ in range(num):
                 el = self.step_right()

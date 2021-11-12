@@ -18,7 +18,7 @@ def test_dmrg_env_matrix():
     mps = pytn.mps.up_spin_mps(num, chi)
 
     mpo = pytn.mpo.traverse_field_ising_mpo(1.0, 0.1, num)
-    dmrg = pytn.dmrg.DMRG(mpo, mps, 10)
+    dmrg = pytn.dmrg.DMRG(mpo, mps)
 
     dmrg.init()
     for i in [0, 1]:
@@ -43,10 +43,10 @@ def test_dmrg_run():
 
         m = mpo0.as_matrix()
         lam_x, _ = tf.linalg.eigh(m)
-        print("exact eigenvalues")
+        print("exact eigenvalues:")
         print(lam_x[0:5])
-        dmrg0 = pytn.dmrg.DMRG(mpo0, mps0, 2, True)
+        dmrg0 = pytn.dmrg.DMRG(mpo0, mps0)
         res_li = dmrg0.run()
 
-        print(res_li[-1]["min_eigval"] == pytest.approx(lam_x[0].numpy()))
+        print("calculated", res_li[-1]["min_eigval"])
         assert res_li[-1]["min_eigval"] == pytest.approx(lam_x[0], 0.00001)
