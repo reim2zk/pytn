@@ -178,3 +178,24 @@ class MPS:
         (nx0) = self.lam.shape[0]
         nx = np.min([nx0, chi])
         self.lam = self.lam[nx0-nx:]
+
+
+def mps_dot(mps0: MPS, mps1: MPS):
+    na0 = mps0.num_A()
+    na1 = mps1.num_A()
+    nb0 = mps0.num_B()
+    nb1 = mps1.num_B()
+    if na0 != na1:
+        raise Exception(
+            f"size mismatch. mps0.num_A={na0}, mps1.num_A={na1}")
+    if nb0 != nb1:
+        raise Exception(
+            f"size mismatch. mps0.num_B={nb0}, mps1.num_B={nb1}")
+
+    E_x_y = tf.ones(shape=(1, 1))
+    for A0_x_a_z, A1_y_a_w in zip(mps0.A_li, mps1.A_li):
+        E_x_y = tf.einsum("xy,xaz,yaw->zw", E_x_y, A0_x_a_z, A1_y_a_w)
+    E_x_y = E_x_y * mps0.lam[:, tf.newaxis] * mps1.lam[tf.newaxis, :]
+    for B0_x_a_z, B1_y_a_w in zip(mps0.B_li, mps1.B_li):
+        E_x_y = tf.einsum("xy,xaz,yaw->zw", E_x_y, B0_x_a_z, B1_y_a_w)
+    return tf.reduce_sum(E_x_y).numpy()
